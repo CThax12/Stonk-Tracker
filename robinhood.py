@@ -10,6 +10,7 @@ login = r.login(email, password)
 
 # Query your positions
 allPositions = r.get_all_option_positions()
+optionNames = []
 print(allPositions[0])
 for pos in allPositions:
   
@@ -19,16 +20,10 @@ for pos in allPositions:
   callOrPut = option["type"]
   date = option["expiration_date"]
 
-  print("{} ${:.2f} {} {}".format(ticker, strike, callOrPut, date))
+  optionNames.append("{} ${} {} {}".format(ticker, strike, callOrPut, date))
 
+entryPrices = []
 
-tickers = []
-
-# Get a list of the tickers for each trade.
-for trade in allPositions:
-  tickers.append(r.get_symbol_by_url(trade["instrument"]))
-
-avgEntryPrices = []
-
+closingPrices = []
 
 r.logout()
