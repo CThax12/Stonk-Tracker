@@ -11,9 +11,17 @@ login = r.login(email, password)
 # Query your positions
 positions = r.get_open_stock_positions()
 
-# Get Ticker symbols
-tickers = [r.get_symbol_by_url(item["instrument"]) for item in positions]
+print(positions)
+print(type(positions[0]))
+print(len(positions))
 
+tickers = []
+
+# Get a list of the tickers for each trade.
+for trade in positions:
+  tickers.append(r.get_symbol_by_url(trade["instrument"]))
+
+print(tickers)
 # Get your quantities
 quantities = [float(item["quantity"]) for item in positions]
 
