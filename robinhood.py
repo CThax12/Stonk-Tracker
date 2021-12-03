@@ -2,6 +2,7 @@ import robin_stocks.robinhood as r
 from pyrh import Robinhood
 import pandas as pd
 import csv
+from collections import Counter
 from robin_stocks.robinhood.export import export_completed_option_orders
 import xlsxwriter as xl
 
@@ -16,14 +17,18 @@ def getCredentials():
 def loginToRH(email, password):
     login = r.login(email, password)
 
-def getOptionTrades():
-    allPositions = r.get_all_option_positions()
+
+def getAllOptions(allPositions):
+  allPositions = r.get_all_option_positions()
+  return allPositions
+
+
+def getOptionTrades(allPositions):
     optionNames = []
     entryPrices = []
     calls = 0
     puts = 0
 
-    print(len(allPositions))
     for i in range(1, len(allPositions), 2):
       option = r.get_option_instrument_data_by_id(allPositions[i]["option_id"])
       ticker = option["chain_symbol"]
@@ -42,31 +47,39 @@ def getOptionTrades():
         puts +=1
     return optionNames,entryPrices,calls,puts
 
+def getFrequentTickers(allPositions):
+  tickerList = []
+  for i in range(1, len(allPositions), 2):
+    ticker = allPositions[i]['chain_symbol']
+    tickerList.append(ticker)
+  
+  c = Counter(tickerList)
+  return dict(c.most_common(10))
 
-def writeOptionsToExcel(optionNames, entryPrices):
+
+  
+
+def writeOptionsToExcel():
     df = pd.DataFrame({"Option Name" : optionNames, "Entry Price" : entryPrices})
     writer = pd.ExcelWriter("OptionTrades.xlsx", engine = 'xlsxwriter')
     df.to_excel(writer, sheet_name="Sheet1")
     return writer
 
 
-def createPieChart(calls, puts, writer):
+def CallPutChart(chartCell, writer, workbook, worksheet, label1, label2):
     workbook = writer.book
-    worksheet = writer.sheets["Sheet1"]
+    worksheet = writer.sheets["Options"]
+    writer.sheets['Options'] = worksheet
+
     chart1 = workbook.add_chart({'type': 'pie'})
 
 # Configure the series. Note the use of the list syntax to define ranges:
-    worksheet.write_string("E2", "Calls")
-    worksheet.write_number("E3", calls)
-    worksheet.write_string("F2", "Puts")
-    worksheet.write_number("F3", puts)
-
 
     chart1.add_series({
     'name':       'Pie sales data',
     'data_labels': {'percentage': True, 'category': True},
-    'categories': ["Sheet1", 1, 4, 1, 5],
-    'values':     ["Sheet1", 2, 4, 2, 5]
+    'categories': ["Options", 1, 5, 1, 6],
+    'values':     ["Options", 2, 5, 2, 6]
 })
 
 # Add a title.
@@ -76,15 +89,63 @@ def createPieChart(calls, puts, writer):
     chart1.set_style(10)
 
 # Insert the chart into the worksheet (with an offset).
-    worksheet.insert_chart('E8', chart1, {'x_offset': 25, 'y_offset': 10})
+    worksheet.insert_chart(chartCell, chart1)
+
+def tickerFrequencyChart(chartCell, writer, workbook, worksheet, label1, label2):
+    workbook = writer.book
+    worksheet = writer.sheets["Options"]
+    writer.sheets['Options'] = worksheet
+
+    chart1 = workbook.add_chart({'type': 'pie'})
+
+# Configure the series. Note the use of the list syntax to define ranges:
+
+    chart1.add_series({
+    'name':       'Ticker Frequency',
+    'data_labels': {'value': True, 'category': True},
+    'categories': ["Options", 3, 13, 3, 14],
+    'values':     ["Options", 4, 13, 13, 14]
+})
+
+# Add a title.
+    chart1.set_title({'name': 'Ticker Frequency'})
+
+# Set an Excel chart style. Colors with white outline and shadow.
+    chart1.set_style(10)
+
+# Insert the chart into the worksheet (with an offset).
+    worksheet.insert_chart(chartCell, chart1)
+
+def writeOptionInfo(listOfTickers, optionNames, entryPrices, calls, puts):
+
+# Configure the series. Note the use of the list syntax to define ranges:
+
+    df1 = pd.DataFrame({"Ticker" : listOfTickers.keys(), "Frequency" : listOfTickers.values()})
+    df2 = pd.DataFrame({"Option Name" : optionNames, "Entry Price" : entryPrices})
+    df3 = pd.DataFrame({"Calls" : [calls], "Puts" : [puts]})
+    writer = pd.ExcelWriter("OptionTrades.xlsx", engine = 'xlsxwriter')
+    workbook = writer.book
+    worksheet = workbook.add_worksheet('Options')
+    writer.sheets['Options'] = worksheet
+    df1.to_excel(writer, sheet_name="Options", startcol=13, startrow=3)
+    df2.to_excel(writer, sheet_name="Options", startcol=0, startrow=0)
+    df3.to_excel(writer, sheet_name="Options", startcol=4, startrow=1)
+    CallPutChart("E8", writer, workbook, worksheet, "Calls", "Puts")
+    tickerFrequencyChart("N20", writer, workbook, worksheet, "Ticker", "Amount")
+    writer.save
+    return writer
+
 
 
 
 email, password = getCredentials()
 loginToRH(email, password)
-optionNames, entryPrices, calls, puts = getOptionTrades()
-writer = writeOptionsToExcel(optionNames, entryPrices)
-createPieChart(calls, puts, writer)
+allPositions = []
+allPositions = getAllOptions(allPositions)
+frequentTickers = getFrequentTickers(allPositions)
+optionNames, entryPrices, calls, puts = getOptionTrades(allPositions)
+writer = writeOptionInfo(frequentTickers, optionNames, entryPrices, calls, puts)
+
 
 writer.save()
 
