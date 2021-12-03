@@ -78,8 +78,8 @@ def CallPutChart(chartCell, writer, workbook, worksheet, label1, label2):
     chart1.add_series({
     'name':       'Pie sales data',
     'data_labels': {'percentage': True, 'category': True},
-    'categories': ["Options", 1, 5, 1, 6],
-    'values':     ["Options", 2, 5, 2, 6]
+    'categories': ["Options", 0, 5, 0, 6],
+    'values':     ["Options", 1, 5, 1, 6]
 })
 
 # Add a title.
@@ -103,8 +103,8 @@ def tickerFrequencyChart(chartCell, writer, workbook, worksheet, label1, label2)
     chart1.add_series({
     'name':       'Ticker Frequency',
     'data_labels': {'value': True, 'category': True},
-    'categories': ["Options", 3, 13, 3, 14],
-    'values':     ["Options", 4, 13, 13, 14]
+    'categories': ["Options", 1, 14, 10, 14],
+    'values':     ["Options", 1, 15, 10, 15]
 })
 
 # Add a title.
@@ -127,11 +127,11 @@ def writeOptionInfo(listOfTickers, optionNames, entryPrices, calls, puts):
     workbook = writer.book
     worksheet = workbook.add_worksheet('Options')
     writer.sheets['Options'] = worksheet
-    df1.to_excel(writer, sheet_name="Options", startcol=13, startrow=3)
+    df1.to_excel(writer, sheet_name="Options", startcol=13, startrow=0)
     df2.to_excel(writer, sheet_name="Options", startcol=0, startrow=0)
-    df3.to_excel(writer, sheet_name="Options", startcol=4, startrow=1)
-    CallPutChart("E8", writer, workbook, worksheet, "Calls", "Puts")
-    tickerFrequencyChart("N20", writer, workbook, worksheet, "Ticker", "Amount")
+    df3.to_excel(writer, sheet_name="Options", startcol=4, startrow=0)
+    CallPutChart("E12", writer, workbook, worksheet, "Calls", "Puts")
+    tickerFrequencyChart("N12", writer, workbook, worksheet, "Ticker", "Amount")
     writer.save
     return writer
 
@@ -143,6 +143,8 @@ loginToRH(email, password)
 allPositions = []
 allPositions = getAllOptions(allPositions)
 frequentTickers = getFrequentTickers(allPositions)
+r.options.write_spinner()
+r.options.spinning_cursor()
 optionNames, entryPrices, calls, puts = getOptionTrades(allPositions)
 writer = writeOptionInfo(frequentTickers, optionNames, entryPrices, calls, puts)
 
