@@ -7,72 +7,86 @@ import xlsxwriter as xl
 
 
 
-email = input("Email: ")
-password = input("Password: ")
+def getCredentials():
+    email = input("Email: ")
+    password = input("Password: ")
+    return email,password
 
-login = r.login(email, password)
 
-# Query your positions
-allPositions = r.get_all_option_positions()
-optionNames = []
-entryPrices = []
-calls = 0
-puts = 0
+def loginToRH(email, password):
+    login = r.login(email, password)
 
-print(len(allPositions))
-for i in range(1, len(allPositions), 2):
-  
-  option = r.get_option_instrument_data_by_id(allPositions[i]["option_id"])
-  ticker = option["chain_symbol"]
-  strike = option["strike_price"]
-  callOrPut = option["type"]
-  date = option["expiration_date"]
+def getOptionTrades():
+    allPositions = r.get_all_option_positions()
+    optionNames = []
+    entryPrices = []
+    calls = 0
+    puts = 0
 
-  optionNames.append("{} ${} {} {}".format(ticker, strike, callOrPut, date))
+    print(len(allPositions))
+    for i in range(1, len(allPositions), 2):
+      option = r.get_option_instrument_data_by_id(allPositions[i]["option_id"])
+      ticker = option["chain_symbol"]
+      strike = option["strike_price"]
+      callOrPut = option["type"]
+      date = option["expiration_date"]
 
-  entryPrice = allPositions[i]["average_price"]
-  entryPrices.append("$" + entryPrice)
+      optionNames.append("{} ${} {} {}".format(ticker, strike, callOrPut, date))
 
-  if "call" in callOrPut:
-    calls +=1
-  else:
-    puts +=1
+      entryPrice = allPositions[i]["average_price"]
+      entryPrices.append("$" + entryPrice)
 
-print(len(optionNames))
-df = pd.DataFrame({"Option Name" : optionNames, "Entry Price" : entryPrices})
-writer = pd.ExcelWriter("OptionTrades.xlsx", engine = 'xlsxwriter')
-df.to_excel(writer, sheet_name="Sheet1")
+      if "call" in callOrPut:
+        calls +=1
+      else:
+        puts +=1
+    return optionNames,entryPrices,calls,puts
 
-workbook = writer.book
-worksheet = writer.sheets["Sheet1"]
-chart1 = workbook.add_chart({'type': 'pie'})
+
+def writeOptionsToExcel(optionNames, entryPrices):
+    df = pd.DataFrame({"Option Name" : optionNames, "Entry Price" : entryPrices})
+    writer = pd.ExcelWriter("OptionTrades.xlsx", engine = 'xlsxwriter')
+    df.to_excel(writer, sheet_name="Sheet1")
+    return writer
+
+
+def createPieChart(calls, puts, writer):
+    workbook = writer.book
+    worksheet = writer.sheets["Sheet1"]
+    chart1 = workbook.add_chart({'type': 'pie'})
 
 # Configure the series. Note the use of the list syntax to define ranges:
-worksheet.write_string("E2", "Calls")
-worksheet.write_number("E3", calls)
-worksheet.write_string("F2", "Puts")
-worksheet.write_number("F3", puts)
+    worksheet.write_string("E2", "Calls")
+    worksheet.write_number("E3", calls)
+    worksheet.write_string("F2", "Puts")
+    worksheet.write_number("F3", puts)
 
 
-chart1.add_series({
+    chart1.add_series({
     'name':       'Pie sales data',
-    'data_labels': {'value': True, 'category': True},
+    'data_labels': {'percentage': True, 'category': True},
     'categories': ["Sheet1", 1, 4, 1, 5],
     'values':     ["Sheet1", 2, 4, 2, 5]
 })
 
 # Add a title.
-chart1.set_title({'name': 'Call vs Put Frequency'})
+    chart1.set_title({'name': 'Call vs Put Frequency'})
 
 # Set an Excel chart style. Colors with white outline and shadow.
-chart1.set_style(10)
+    chart1.set_style(10)
 
 # Insert the chart into the worksheet (with an offset).
-worksheet.insert_chart('E8', chart1, {'x_offset': 25, 'y_offset': 10})
+    worksheet.insert_chart('E8', chart1, {'x_offset': 25, 'y_offset': 10})
+
+
+
+email, password = getCredentials()
+loginToRH(email, password)
+optionNames, entryPrices, calls, puts = getOptionTrades()
+writer = writeOptionsToExcel(optionNames, entryPrices)
+createPieChart(calls, puts, writer)
 
 writer.save()
-
-closingPrices = []
 
 r.logout()
 
